@@ -1,8 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
-using Godot.Collections;
+using GodotDictionary = Godot.Collections.Dictionary;
 
 namespace Raele.AtlasTextureImporter;
 
@@ -16,18 +15,37 @@ public partial class ImportPlugin : EditorImportPlugin
 	public override string _GetResourceType() => "Resource";
 	public override int _GetPresetCount() => 1;
 	public override string _GetPresetName(int presetIndex) => "Default";
-	public override Array<Dictionary> _GetImportOptions(string path, int presetIndex) => [];
-	public override bool _GetOptionVisibility(string path, StringName optionName, Dictionary options) => true;
+	public override Godot.Collections.Array<GodotDictionary> _GetImportOptions(string path, int presetIndex) => [
+		new GodotDictionary
+		{
+			{ "name", "save_as_png" },
+			{ "default_value", false },
+			// { "property_hint", PropertyHint.None },
+			// { "hint_string", "" },
+			// { "usage", PropertyUsageFlags.Default },
+		}
+	];
+	public override bool _GetOptionVisibility(string path, StringName optionName, GodotDictionary options) => true;
 	public override int _GetImportOrder() => 200;
 	public override float _GetPriority() => 1f;
 
-	public override Error _Import(string sourcePath, string savePath, Dictionary options, Array<string> platformVariants, Array<string> genFiles)
+	public override Error _Import(
+		string sourcePath,
+		string savePath,
+		GodotDictionary options,
+		Godot.Collections.Array<string> platformVariants,
+		Godot.Collections.Array<string> genFiles
+	)
 	{
 		GD.PrintS("Importing atlas texture: ", sourcePath);
 
 		AtlasTextureSourcePair atlasPair = new(sourcePath);
-		IEnumerable<string> outputFiles = atlasPair.GenerateAtlasTextures().Select(pair => pair.Item2);
-		genFiles.AddRange(outputFiles);
+
+		IEnumerable<string> outputFilepaths = options["save_as_png"].AsBool()
+			? atlasPair.SaveTexturesAsPng()
+			: atlasPair.SaveTexturesAsResource();
+
+		genFiles.AddRange(outputFilepaths);
 
 		GD.PrintS("Generated ", genFiles.Count, " atlas textures.");
 

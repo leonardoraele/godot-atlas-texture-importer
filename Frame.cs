@@ -35,15 +35,4 @@ public partial record Frame
 		var sourceSizeDict = dataDict["sourceSize"].AsGodotDictionary();
 		this.SourceSize = new Vector2I(sourceSizeDict["w"].AsInt32(), sourceSizeDict["h"].AsInt32());
 	}
-
-	public string BuildOutputFilepath(string outputDirPath)
-		=> $"{outputDirPath}/{this.Filename.GetBaseName()}.tres";
-
-	public AtlasTexture BuildAtlasTexture(Texture2D atlas)
-		=> new AtlasTexture()
-		{
-			Atlas = atlas,
-			Region = this.FrameRect,
-			Margin = this.Margin,
-		};
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Godot;
@@ -12,7 +13,7 @@ public class AtlasTextureSourcePair
 		this.AtlasFilepath.GetBaseDir(),
 		this.AtlasData["meta"].AsGodotDictionary()["image"].AsString()
 	);
-	public string OutputDirName => this.AtlasFilepath.GetFile().GetBaseName().GetBaseName() + ".textures";
+	public string OutputDirName => this.AtlasFilepath.GetFile().GetBaseName().GetBaseName() + ".sprites";
 	public string SourcePairDirPath => this.AtlasFilepath.GetBaseDir();
 	public string OutputDirPath => Path.Combine(this.SourcePairDirPath, this.OutputDirName);
 	public Godot.Collections.Dictionary AtlasData
@@ -31,8 +32,8 @@ public class AtlasTextureSourcePair
 			: throw new Exception("Invalid frames format in atlas JSON.")
 		);
 	public Texture2D SourceTexture => field ??= ResourceLoader.Load<Texture2D>(this.ImageFilepath, "Texture2D", ResourceLoader.CacheMode.Reuse);
-
 	private DirAccess SourcePairDirAccess => field ??= DirAccess.Open(this.SourcePairDirPath);
+	private DirAccess OutputDirAccess => field ??= DirAccess.Open(this.OutputDirPath);
 
 	public AtlasTextureSourcePair(string filepath)
 	{
@@ -47,26 +48,81 @@ public class AtlasTextureSourcePair
 		return contents;
 	}
 
-	public (AtlasTexture, string)[] GenerateAtlasTextures()
-		=> this.Frames.Select(this.GenerateAtlasTexture).ToArray();
-
-	private (AtlasTexture, string) GenerateAtlasTexture(Frame frame)
+	public IEnumerable<string> SaveTexturesAsPng()
 	{
-		this.AssertOutputDirExists();
-		string outputFilepath = frame.BuildOutputFilepath(this.OutputDirPath);
+		this.PrepareOutputDir();
+		foreach (var frame in this.Frames)
+		{
+			AtlasTexture atlas = this.BuildAtlasTexture(frame);
+			yield return this.SaveTextureAsPng(frame, atlas);
+		}
+	}
+
+	private string SaveTextureAsPng(Frame frame, AtlasTexture atlas)
+	{
+		string outputFilepath = Path.Combine(this.OutputDirPath, $"{frame.Filename}.png");
 		GD.PrintS("Generating texture...", new { outputFilepath });
-		AtlasTexture atlas = this.BuildAtlasTexture(frame);
-		Error error = ResourceSaver.Save(atlas, outputFilepath);
+		Error error = atlas.GetImage().SavePng(outputFilepath);
 		if (error != Error.Ok)
 		{
 			GD.PrintErr("Failed to save AtlasTexture.", new { outputFilepath, error });
 		}
-		return (atlas, outputFilepath);
+		return outputFilepath;
 	}
 
-	private void AssertOutputDirExists()
+	public IEnumerable<string> SaveTexturesAsResource()
 	{
-		if (!this.SourcePairDirAccess.DirExists(this.OutputDirName))
+		this.PrepareOutputDir();
+		foreach (var frame in this.Frames)
+		{
+			AtlasTexture atlas = this.BuildAtlasTexture(frame);
+			yield return this.SaveTextureAsResource(frame, atlas);
+		}
+	}
+
+	private string SaveTextureAsResource(Frame frame, AtlasTexture atlas)
+	{
+		string outputFilepath = Path.Combine(this.OutputDirPath, $"{frame.Filename}.tres");
+		GD.PrintS("Generating texture...", new { outputFilepath });
+		Error error = ResourceSaver.Save(atlas, outputFilepath);
+		if (error != Error.Ok)
+		{
+			GD.PrintErr("Failed to save PNG sprite.", new { outputFilepath, error });
+		}
+		return outputFilepath;
+	}
+
+	private AtlasTexture BuildAtlasTexture(Frame frame)
+		=> new AtlasTexture()
+		{
+			Atlas = this.SourceTexture,
+			Region = frame.FrameRect,
+			Margin = frame.Margin,
+		};
+
+	private void PrepareOutputDir()
+	{
+		if (this.SourcePairDirAccess.DirExists(this.OutputDirName))
+		{
+			// Delete all existing files in the output directory
+			try
+			{
+				this.OutputDirAccess.ListDirBegin();
+				for (string? fileName; !string.IsNullOrEmpty(fileName = this.OutputDirAccess.GetNext());)
+				{
+					Error error = this.OutputDirAccess.Remove(fileName);
+					if (error != Error.Ok)
+					{
+						throw new Exception($"Failed to delete existing file in output directory. {new { this.OutputDirAccess, fileName, error }}");
+					}
+				}
+			}
+			finally
+			{
+				this.OutputDirAccess.ListDirEnd();
+			}
+		}
+		else
 		{
 			Error error = this.SourcePairDirAccess.MakeDir(this.OutputDirName);
 			if (error != Error.Ok)
@@ -75,7 +131,4 @@ public class AtlasTextureSourcePair
 			}
 		}
 	}
-
-	private AtlasTexture BuildAtlasTexture(Frame frame)
-		=> frame.BuildAtlasTexture(this.SourceTexture);
 }
