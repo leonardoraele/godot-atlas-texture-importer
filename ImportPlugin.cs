@@ -25,7 +25,7 @@ public partial class ImportPlugin : EditorImportPlugin
 	{
 		GD.PrintS("Importing atlas texture: ", sourcePath);
 
-		AtlasTextureSourcePair atlasPair = new(sourcePath.GetBaseName().GetBaseName());
+		AtlasTextureSourcePair atlasPair = new(sourcePath);
 		IEnumerable<string> outputFiles = atlasPair.GenerateAtlasTextures().Select(pair => pair.Item2);
 		genFiles.AddRange(outputFiles);
 

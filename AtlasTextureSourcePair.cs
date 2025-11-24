@@ -8,13 +8,13 @@ namespace Raele.AtlasTextureImporter;
 public class AtlasTextureSourcePair
 {
 	public string AtlasFilepath { get; private set; }
-	public string ImageFilepath => field ??= Path.GetRelativePath(
+	public string ImageFilepath => field ??= Path.Combine(
 		this.AtlasFilepath.GetBaseDir(),
 		this.AtlasData["meta"].AsGodotDictionary()["image"].AsString()
 	);
-	public string OutputDirPath => this.ImageFilepath.GetBaseName();
-	public string OutputDirName => this.OutputDirPath.GetFile();
-	public string SourcePairDirPath => this.ImageFilepath.GetBaseDir();
+	public string OutputDirName => this.AtlasFilepath.GetFile().GetBaseName().GetBaseName() + ".textures";
+	public string SourcePairDirPath => this.AtlasFilepath.GetBaseDir();
+	public string OutputDirPath => Path.Combine(this.SourcePairDirPath, this.OutputDirName);
 	public Godot.Collections.Dictionary AtlasData
 		=> field ??= Json.ParseString(this.ReadAtlasFile()).AsGodotDictionary();
 	public Frame[] Frames
@@ -30,7 +30,7 @@ public class AtlasTextureSourcePair
 					.ToArray()
 			: throw new Exception("Invalid frames format in atlas JSON.")
 		);
-	public Texture2D SourceTexture => field ??= ResourceLoader.Load<Texture2D>(this.ImageFilepath, "Texture2D", ResourceLoader.CacheMode.Ignore);
+	public Texture2D SourceTexture => field ??= ResourceLoader.Load<Texture2D>(this.ImageFilepath, "Texture2D", ResourceLoader.CacheMode.Reuse);
 
 	private DirAccess SourcePairDirAccess => field ??= DirAccess.Open(this.SourcePairDirPath);
 
