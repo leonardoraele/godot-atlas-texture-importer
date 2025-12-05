@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -8,6 +9,11 @@ namespace Raele.AtlasTextureImporter;
 [Tool]
 public partial class ImportPlugin : EditorImportPlugin
 {
+	private enum ModeEnum : int
+	{
+		ImportAsAtlasTextures = 0,
+		ImportAsPng = 1,
+	}
 	public override string _GetImporterName() => typeof(ImportPlugin).FullName!;
 	public override string _GetVisibleName() => "Atlas Texture Importer";
 	public override string[] _GetRecognizedExtensions() => [".atlas.json"];
@@ -18,11 +24,11 @@ public partial class ImportPlugin : EditorImportPlugin
 	public override Godot.Collections.Array<GodotDictionary> _GetImportOptions(string path, int presetIndex) => [
 		new GodotDictionary
 		{
-			{ "name", "save_as_png" },
-			{ "default_value", false },
-			// { "property_hint", PropertyHint.None },
-			// { "hint_string", "" },
-			// { "usage", PropertyUsageFlags.Default },
+			{ "name", "mode" },
+			{ "default_value", (long) ModeEnum.ImportAsAtlasTextures },
+			{ "property_hint", (long) PropertyHint.Enum },
+			{ "hint_string", Enum.GetValues<ModeEnum>().Select(value => $"{value}:{Enum.Format(typeof(ModeEnum), value, "d")}").ToArray().Join(",") },
+			{ "usage", (int) PropertyUsageFlags.Default | (int) PropertyUsageFlags.UpdateAllIfModified },
 		}
 	];
 	public override bool _GetOptionVisibility(string path, StringName optionName, GodotDictionary options) => true;
@@ -37,19 +43,23 @@ public partial class ImportPlugin : EditorImportPlugin
 		Godot.Collections.Array<string> genFiles
 	)
 	{
-		GD.PrintS("Importing atlas texture: ", sourcePath);
+		GD.PrintS("Importing atlas texture...", new { sourcePath });
 
 		AtlasTextureSourcePair atlasPair = new(sourcePath);
 
-		IEnumerable<string> outputFilepaths = options["save_as_png"].AsBool()
-			? atlasPair.SaveTexturesAsPng()
-			: atlasPair.SaveTexturesAsResource();
+		IEnumerable<string> outputFilepaths = (ModeEnum) options["mode"].AsInt32() switch
+		{
+			ModeEnum.ImportAsAtlasTextures => atlasPair.SaveTexturesAsResource(),
+			ModeEnum.ImportAsPng => atlasPair.SaveTexturesAsPng(),
+			_ => throw new NotImplementedException("Failed to import texture atlas. Cause: Unhandled import mode: " + options["mode"]),
+		};
 
 		genFiles.AddRange(outputFilepaths);
 
-		GD.PrintS("Generated ", genFiles.Count, " atlas textures.");
+		GD.PrintS("Import complete. Generated ", genFiles.Count, " files.");
 
-		EditorInterface.Singleton.Call("get_resource_filesystem").AsGodotObject().Call("scan_sources");
+		// Refresh the FileSystem editor interface so the generated files appear to the user. This must be done manually.
+		EditorInterface.Singleton.GetResourceFilesystem().ScanSources();
 
 		return ResourceSaver.Save(new Resource(), savePath + "." + this._GetSaveExtension());
 	}

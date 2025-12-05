@@ -8,13 +8,13 @@ namespace Raele.AtlasTextureImporter;
 
 public class AtlasTextureSourcePair
 {
-	public string AtlasFilepath { get; private set; }
+	public string JsonFilepath { get; private set; }
 	public string ImageFilepath => field ??= Path.Combine(
-		this.AtlasFilepath.GetBaseDir(),
+		this.JsonFilepath.GetBaseDir(),
 		this.AtlasData["meta"].AsGodotDictionary()["image"].AsString()
 	);
-	public string OutputDirName => this.AtlasFilepath.GetFile().GetBaseName().GetBaseName() + ".sprites";
-	public string SourcePairDirPath => this.AtlasFilepath.GetBaseDir();
+	public string OutputDirName => this.JsonFilepath.GetFile().GetBaseName().GetBaseName() + ".sprites";
+	public string SourcePairDirPath => this.JsonFilepath.GetBaseDir();
 	public string OutputDirPath => Path.Combine(this.SourcePairDirPath, this.OutputDirName);
 	public Godot.Collections.Dictionary AtlasData
 		=> field ??= Json.ParseString(this.ReadAtlasFile()).AsGodotDictionary();
@@ -35,14 +35,11 @@ public class AtlasTextureSourcePair
 	private DirAccess SourcePairDirAccess => field ??= DirAccess.Open(this.SourcePairDirPath);
 	private DirAccess OutputDirAccess => field ??= DirAccess.Open(this.OutputDirPath);
 
-	public AtlasTextureSourcePair(string filepath)
-	{
-		this.AtlasFilepath = filepath;
-	}
+	public AtlasTextureSourcePair(string filepath) => this.JsonFilepath = filepath;
 
 	private string ReadAtlasFile()
 	{
-		Godot.FileAccess file = Godot.FileAccess.Open(this.AtlasFilepath, Godot.FileAccess.ModeFlags.Read);
+		Godot.FileAccess file = Godot.FileAccess.Open(this.JsonFilepath, Godot.FileAccess.ModeFlags.Read);
 		string contents = file.GetAsText();
 		file.Close();
 		return contents;
