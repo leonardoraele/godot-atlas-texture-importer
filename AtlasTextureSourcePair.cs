@@ -45,7 +45,7 @@ public class AtlasTextureSourcePair
 		return contents;
 	}
 
-	public IEnumerable<string> SaveTexturesAsPng()
+	public IEnumerable<string> SaveTexturesAsPng(ImportOptions options)
 	{
 		this.PrepareOutputDir();
 		foreach (var frame in this.Frames)
@@ -67,7 +67,7 @@ public class AtlasTextureSourcePair
 		return outputFilepath;
 	}
 
-	public IEnumerable<string> SaveTexturesAsResource()
+	public IEnumerable<string> SaveTexturesAsResource(ImportOptions options)
 	{
 		this.PrepareOutputDir();
 		foreach (var frame in this.Frames)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Godot;
 using GodotDictionary = Godot.Collections.Dictionary;
 
@@ -9,11 +8,6 @@ namespace Raele.AtlasTextureImporter;
 [Tool]
 public partial class ImportPlugin : EditorImportPlugin
 {
-	private enum ModeEnum : int
-	{
-		ImportAsAtlasTextures = 0,
-		ImportAsPng = 1,
-	}
 	public override string _GetImporterName() => typeof(ImportPlugin).FullName!;
 	public override string _GetVisibleName() => "Atlas Texture Importer";
 	public override string[] _GetRecognizedExtensions() => [".atlas.json"];
@@ -21,24 +15,17 @@ public partial class ImportPlugin : EditorImportPlugin
 	public override string _GetResourceType() => "Resource";
 	public override int _GetPresetCount() => 1;
 	public override string _GetPresetName(int presetIndex) => "Default";
-	public override Godot.Collections.Array<GodotDictionary> _GetImportOptions(string path, int presetIndex) => [
-		new GodotDictionary
-		{
-			{ "name", "mode" },
-			{ "default_value", (long) ModeEnum.ImportAsAtlasTextures },
-			{ "property_hint", (long) PropertyHint.Enum },
-			{ "hint_string", Enum.GetValues<ModeEnum>().Select(value => $"{value}:{Enum.Format(typeof(ModeEnum), value, "d")}").ToArray().Join(",") },
-			{ "usage", (int) PropertyUsageFlags.Default | (int) PropertyUsageFlags.UpdateAllIfModified },
-		}
-	];
-	public override bool _GetOptionVisibility(string path, StringName optionName, GodotDictionary options) => true;
+	public override Godot.Collections.Array<GodotDictionary> _GetImportOptions(string path, int presetIndex)
+		=> ImportOptions._GetImportOptions(path, presetIndex);
+	public override bool _GetOptionVisibility(string path, StringName optionName, GodotDictionary options)
+		=> ImportOptions._GetOptionVisibility(path, optionName, options);
 	public override int _GetImportOrder() => 200;
 	public override float _GetPriority() => 1f;
 
 	public override Error _Import(
 		string sourcePath,
 		string savePath,
-		GodotDictionary options,
+		GodotDictionary optionsDict,
 		Godot.Collections.Array<string> platformVariants,
 		Godot.Collections.Array<string> genFiles
 	)
@@ -46,12 +33,13 @@ public partial class ImportPlugin : EditorImportPlugin
 		GD.PrintS("Importing atlas texture...", new { sourcePath });
 
 		AtlasTextureSourcePair atlasPair = new(sourcePath);
+		ImportOptions options = new(optionsDict);
 
-		IEnumerable<string> outputFilepaths = (ModeEnum) options["mode"].AsInt32() switch
+		IEnumerable<string> outputFilepaths = options.Mode switch
 		{
-			ModeEnum.ImportAsAtlasTextures => atlasPair.SaveTexturesAsResource(),
-			ModeEnum.ImportAsPng => atlasPair.SaveTexturesAsPng(),
-			_ => throw new NotImplementedException("Failed to import texture atlas. Cause: Unhandled import mode: " + options["mode"]),
+			ImportOptions.ModeEnum.ImportAsAtlasTextures => atlasPair.SaveTexturesAsResource(options),
+			ImportOptions.ModeEnum.ImportAsPng => atlasPair.SaveTexturesAsPng(options),
+			_ => throw new NotImplementedException("Failed to import texture atlas. Cause: Unhandled import mode: " + options.Mode),
 		};
 
 		genFiles.AddRange(outputFilepaths);
